@@ -1,6 +1,19 @@
 RVM_SYSTEM_PATH = "/usr/local/rvm"
 RVM_USER_PATH = "~/.rvm"
 
+SSHKit::Backend::Netssh.class_eval do
+  def with_rvm(*rvm_versions, &block)
+    instance_eval(&block) and return if rvm_version.compact.empty?
+
+    old_rvm_version = fetch(:rvm_ruby_version)
+    rvm_version = rvm_versions.compact.join(',')
+
+    set :rvm_ruby_version, rvm_version
+    instance_eval(&block)
+    set :rvm_ruby_version, old_rvm_version
+  end
+end
+
 namespace :rvm do
   desc "Prints the RVM and Ruby version on the target host"
   task :check do
@@ -36,7 +49,7 @@ namespace :rvm do
 
     SSHKit.config.command_map[:rvm] = "#{fetch(:rvm_path)}/bin/rvm"
 
-    rvm_prefix = "#{fetch(:rvm_path)}/bin/rvm #{fetch(:rvm_ruby_version)} do"
+    rvm_prefix = ->() { "#{fetch(:rvm_path)}/bin/rvm #{fetch(:rvm_ruby_version)} do" }
     fetch(:rvm_map_bins).each do |command|
       SSHKit.config.command_map.prefix[command.to_sym].unshift(rvm_prefix)
     end
