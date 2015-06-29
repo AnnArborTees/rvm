@@ -3,7 +3,7 @@ RVM_USER_PATH = "~/.rvm"
 
 SSHKit::Backend::Netssh.class_eval do
   def with_rvm(*rvm_versions, &block)
-    instance_eval(&block) and return if rvm_version.compact.empty?
+    instance_eval(&block) and return if rvm_versions.compact.empty?
 
     old_rvm_version = fetch(:rvm_ruby_version)
     rvm_version = rvm_versions.compact.join(',')
