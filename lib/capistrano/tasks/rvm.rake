@@ -5,12 +5,11 @@ SSHKit::Backend::Netssh.class_eval do
   def with_rvm(*rvm_versions, &block)
     return instance_eval(&block) if rvm_versions.compact.empty?
 
-    old_rvm_version = fetch(:rvm_ruby_version)
-    rvm_version = rvm_versions.compact.join(',')
+    rvm_version = rvm_versions.flatten.compact.flat_map{ |v| v.split(',') }.uniq.join(',')
 
-    set :rvm_ruby_version, rvm_version
+    set :rvm_force_ruby_version, rvm_version
     result = instance_eval(&block)
-    set :rvm_ruby_version, old_rvm_version
+    set :rvm_force_ruby_version, nil
     result
   end
 end
@@ -50,9 +49,15 @@ namespace :rvm do
 
     SSHKit.config.command_map[:rvm] = "#{fetch(:rvm_path)}/bin/rvm"
 
-    rvm_prefix = ->() { "#{fetch(:rvm_path)}/bin/rvm #{fetch(:rvm_ruby_version)} do" }
+    rvm_prefix = lambda do |version|
+      -> { "#{fetch(:rvm_path)}/bin/rvm #{fetch(:rvm_force_ruby_version) || fetch(version)} do" }
+    end
+
     fetch(:rvm_map_bins).each do |command|
-      SSHKit.config.command_map.prefix[command.to_sym].unshift(rvm_prefix)
+      SSHKit.config.command_map.prefix[command.to_sym].unshift(rvm_prefix[:rvm_ruby_version])
+    end
+    fetch(:rvm_map_task_bins).each do |command|
+      SSHKit.config.command_map.prefix[command.to_sym].unshift(rvm_prefix[:rvm_task_ruby_version])
     end
   end
 end
@@ -64,8 +69,10 @@ end
 
 namespace :load do
   task :defaults do
-    set :rvm_map_bins, %w{gem rake ruby bundle}
+    set :rvm_map_bins, %w{gem}
+    set :rvm_map_task_bins, %w{rake ruby bundle}
     set :rvm_type, :auto
     set :rvm_ruby_version, "default"
+    set :rvm_task_ruby_version, "default"
   end
 end
